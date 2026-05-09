@@ -1,139 +1,66 @@
-# Weather-ETL-AI-Text-Generation-Pipeline-using-Microsoft-Fabric-and-Telegram-Bot
+## Overview
+This project is an automated Data Engineering pipeline built on Microsoft Fabric. It orchestrates an ETL process that extracts real-time weather data for Alexandria, Egypt, transforms it using PySpark, leverages a Large Language Model (LLM) to generate a natural language summary, and automatically broadcasts the update to a Telegram channel via a bot.
 
+## Architecture & Tech Stack
+Platform: Microsoft Fabric (Pipelines, Notebooks, OneLake)
 
+Languages: Python, PySpark
 
-Project Overview
+Storage: Delta Lake (Medallion Architecture)
 
-This project demonstrates how to:
+APIs: OpenWeatherMap API, Telegram Bot API
 
-Extract live weather data from an API
-Transform and clean the data using PySpark
-Store data in Bronze & Silver Delta tables
-Generate human-readable weather summaries using an LLM
-Send generated insights directly to Telegram
+Machine Learning: Hugging Face transformers (google/flan-t5-base)
 
-The project follows a simple Medallion Architecture approach inside Microsoft Fabric.
+## Pipeline Workflow
+1. Data Extraction (Ingestion)
+Connects to the OpenWeatherMap API using the Python requests library to fetch current weather data (temperature, pressure, humidity, and weather description) in JSON format.
 
-Technologies Used
-Python
-PySpark
-Microsoft Fabric
-Delta Lake
-OpenWeather API
-Hugging Face Transformers
-FLAN-T5 Base
-Telegram Bot API
-Pipeline Architecture
-OpenWeather API
-        ↓
-   Raw JSON Data
-        ↓
- Bronze Layer (weather_bronze)
-        ↓
- Data Cleaning & Transformation
-        ↓
- Silver Layer (weather_silver)
-        ↓
- Hugging Face FLAN-T5 Model
-        ↓
- AI Generated Weather Report
-        ↓
- Telegram Bot Notification
-Features
-Data Extraction
+2. Bronze Layer (Raw Storage)
+Extracts the target variables from the API response.
 
-Fetches live weather data using OpenWeather API.
+Creates a PySpark DataFrame from the raw data.
 
-Bronze Layer
+Writes the DataFrame to OneLake as a Delta table named weather_bronzee in overwrite mode.
 
-Stores raw ingested weather data in Delta format.
+3. Silver Layer (Transformation)
+Reads from the Bronze layer.
 
-Silver Layer
+Applies data transformations using PySpark, specifically converting the temperature from Kelvin to Celsius (col('temp') - 273).
 
-Performs transformations such as:
+Writes the cleaned data to a new Delta table named weather_silver.
 
-Temperature conversion (Kelvin → Celsius)
-Data cleaning
-Structured formatting
-AI Text Generation
+4. AI Text Generation
+Initializes a text-to-text generation pipeline using Hugging Face's transformers library.
 
-Uses Google's FLAN-T5 model to generate natural language weather reports.
+Uses the google/flan-t5-base model to construct a human-readable sentence based on the extracted weather conditions and converted temperature.
 
-Example:
+5. Automated Notification (Telegram)
+Takes the AI-generated text output.
 
-City Alex has clear sky weather with a temperature of 18.7°C.
-Telegram Integration
+Sends a POST request to the Telegram Bot API (/sendMessage endpoint) using the required Bot Access Token and Target Chat ID.
 
-Automatically sends generated weather summaries to a Telegram chat using a bot.
+The final result is an automated message delivered straight to the configured Telegram channel.
 
-Notebook Workflow
-1. Extract Weather Data
-description = data['weather'][0]['description']
-temp = data['main']['temp']
-pressure = data['main']['pressure']
-humidity = data['main']['humidity']
-2. Create Bronze Table
-df = spark.createDataFrame(row)
+## Prerequisites
+To replicate or deploy this project, you will need:
 
-df.write.format('delta') \
-.mode('overwrite') \
-.saveAsTable('weather_bronze')
-3. Create Silver Table
-from pyspark.sql.functions import *
+A Microsoft Fabric workspace.
 
-df = df.withColumn('temp', col('temp') - 273)
+An OpenWeatherMap API Key.
 
-df.write.format('delta') \
-.mode('overwrite') \
-.saveAsTable('weather_silver')
-4. AI Weather Text Generation
-from transformers import pipeline
+A Telegram Bot Access Token (generated via BotFather).
 
-generator = pipeline(
-    "text2text-generation",
-    model="google/flan-t5-base"
-)
-5. Generate Final Weather Report
-input_text = f"""
-city Alex has {description} weather
-with a temperature of {temp}°C
-"""
+The Chat ID of the target Telegram group or user.
 
-result = generator(input_text, max_length=100)
-6. Send Result to Telegram
-import requests
+## Configuration
+Before running the pipeline, ensure the following variables are updated in the PySpark notebook:
 
-url = f"https://api.telegram.org/bot{access_token}/sendMessage"
+appid in the OpenWeatherMap URL.
 
-requests.post(url, json={
-    "chat_id": chat_id,
-    "text": result
-})
-How to Run
-1. Clone Repository
-git clone https://github.com/yourusername/weather-etl-fabric.git
-2. Open Microsoft Fabric Notebook
+access_token for the Telegram Bot.
 
-Upload the notebook into Microsoft Fabric.
+chat_id for the destination Telegram chat.
 
-3. Install Required Libraries
-pip install transformers
-pip install requests
-4. Add Your API Keys
-
-Replace:
-
-access_token = "YOUR_TELEGRAM_BOT_TOKEN"
-
-and
-
-api_key = "YOUR_OPENWEATHER_API_KEY"
-5. Run Notebook Cells Sequentially
-
-Execute all notebook cells in order.
-
-
-
-Data Engineering Enthusiast
-AI & Machine Learning Learner
-Microsoft Fabric Explorer
+Execution
+The entire process is automated and orchestrated via a Fabric Pipeline (Pipeline_1), which triggers the main notebook containing the ETL and API logic.
